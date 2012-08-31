@@ -2,15 +2,14 @@
 module Main where
 
 import Prelude hiding(catch)
-import Control.Applicative ((<$>),(<*>))
-import Control.Monad (mzero,liftM,foldM)
+import Control.Applicative ((<$>))
+import Control.Monad (mzero,liftM)
 import Control.Exception
-import Data.Monoid (mappend,mempty)
+import Data.Monoid (mappend)
 import Data.Text
 import Data.Time
 import System.Locale (defaultTimeLocale)
 import Network.HTTP.Conduit
-import Control.Monad.IO.Class (liftIO)
 import Data.Maybe
 import qualified Data.Vector as DV
 import Data.Aeson
