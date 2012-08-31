@@ -9,6 +9,7 @@ import Control.Exception
 import Data.Foldable (fold)
 import Data.Monoid (mappend)
 import Data.Text
+import Data.Time
 import System.IO
 import Network.HTTP.Conduit
 import Data.Maybe
@@ -49,11 +50,14 @@ fetch u m = do
 
 toBlock :: Event -> Blocks
 toBlock (PushEvent _ r cs t) =
-  para (str ("PushEvent to " ++ unpack r ++ " " ++ show t)) <>
+  para (str ("PushEvent to " ++ unpack r ++ " " ++ show (jstTime t))) <>
   bulletList commitList
   where
     commitList = flip Prelude.map (DV.toList cs) $ \c ->
       plain (str (unpack $ name c `mappend` ": " `mappend` comment c `mappend` " ") `mappend` link (commitUrl c) "Go To Commit" "Go To Commit")
+
+jstTime :: UTCTime -> LocalTime
+jstTime t = utcToLocalTime (TimeZone (9 * 3600) False "JST") t
 
 {- Format: <user or orgs>/<repo> -}
 toEventsUrl :: String -> String
