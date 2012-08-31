@@ -57,7 +57,7 @@ toBlock (PushEvent _ r cs t) =
       plain (str (unpack $ name c `mappend` ": " `mappend` comment c `mappend` " ") `mappend` link (commitUrl c) "Go To Commit" "Go To Commit")
 
 jstTime :: UTCTime -> LocalTime
-jstTime t = utcToLocalTime (TimeZone (9 * 3600) False "JST") t
+jstTime t = utcToLocalTime (TimeZone (9 * 60) False "JST") t
 
 {- Format: <user or orgs>/<repo> -}
 toEventsUrl :: String -> String
