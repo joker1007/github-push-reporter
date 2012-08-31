@@ -1,19 +1,19 @@
-{-# LANGUAGE OverloadedStrings,FlexibleInstances,QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings,FlexibleInstances,QuasiQuotes,TemplateHaskell #-}
 module Main where
 
 import Prelude hiding(catch)
 import Control.Applicative ((<$>))
-import Control.Monad (mzero,liftM)
+import Control.Monad (liftM)
+import Control.Monad.IO.Class (liftIO)
 import Control.Exception
+import Data.Foldable (fold)
 import Data.Monoid (mappend)
 import Data.Text
-import Data.Time
-import System.Locale (defaultTimeLocale)
+import System.IO
 import Network.HTTP.Conduit
 import Data.Maybe
 import qualified Data.Vector as DV
 import Data.Aeson
-import Data.Aeson.Types (Parser)
 import qualified Data.Aeson.Types as DAT
 import qualified Data.ByteString.Char8 as BC
 import Text.Regex
@@ -21,78 +21,21 @@ import Text.Pandoc
 import Text.Pandoc.Builder
 import Text.Hamlet
 import Text.Blaze.Html.Renderer.String
+import Types
 
-data Commit = Commit {
-                name :: Text,
-                email :: Text,
-                comment :: Text
-                } deriving (Eq,Show)
-
-data Event = PushEvent { commits :: DV.Vector Commit, createdAt :: UTCTime } deriving (Show,Eq)
-
-instance FromJSON Commit where
-  parseJSON (Object o) = do author <- o .: "author"
-                            n <- author .: "name"
-                            e <- author .: "email"
-                            c <- o .: "message"
-                            return $ Commit n e c
-  parseJSON _ = mzero
-
-instance FromJSON Event where
-  parseJSON (Object o) = do eventType <- o .: "type"
-                            parseEvent eventType
-    where
-      parseEvent :: String -> Parser Event
-      parseEvent "PushEvent" = do payload <- o .: "payload"
-                                  cs <- payload .: "commits"
-                                  vcs <- parseJSON cs :: Parser (DV.Vector Commit)
-                                  Just t <- liftM (parseTime defaultTimeLocale "%FT%TZ") $ o .: "created_at"
-                                  return $ PushEvent vcs t
-      parseEvent _ = mzero
-
-  parseJSON _ = mzero
-
-instance FromJSON (DV.Vector Commit) where
-  parseJSON (Array a) = DV.mapM parseJSON a
-  parseJSON _ = mzero
-
-instance FromJSON (DV.Vector Event) where
-  parseJSON (Array a) = DV.mapM parseJSON a
-  parseJSON _ = mzero
-
-data BasicAuth = BasicAuth {login :: String, password :: String} deriving Show
-
-main :: IO()
-main = do
-  repos <- getRepos
-  auth <- getAuth
-  bss <- mapM (flip fetch auth) repos
-  bs <- return $ Prelude.foldl1 (\acc bs -> acc <> bs) bss
-  putStrLn $ writeHtmlString defaultWriterOptions {writerStandalone = True, writerTemplate = template} $ doc $ bs
-  return ()
-  where template = renderHtml [shamlet| $newline always
-                              $doctype 5
-                              <html>
-                                <head>
-                                  <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.1.0/css/bootstrap-combined.min.css" />
-                                  <title>Github Push Report
-                                <body>
-                                  <div.container-fluid>
-                                    \$body$
-                            |]
-
+{- Format: <user or orgs>/<repo> -}
 getRepos :: IO [String]
 getRepos = liftM Prelude.lines $ readFile "repositories"
 
+{- Format: login:pass -}
 getAuth :: IO (Maybe BasicAuth)
-getAuth = do
-    flip catch (\e -> do {return (e :: SomeException); return Nothing}) $ do
-      (l:p:_) <- splitRegex (mkRegex ":") <$> readFile "auth"
-      return $ Just $ BasicAuth l (Prelude.takeWhile (/= '\n') p)
+getAuth = handle (\(SomeException _) -> do {return Nothing}) $ do
+    (l:p:_) <- splitRegex (mkRegex ":") <$> readFile "auth"
+    return $ Just $ BasicAuth l (Prelude.takeWhile (/= '\n') p)
 
 fetch :: String -> Maybe BasicAuth -> IO Blocks
 fetch u m = do
-  url <- return $ toEventsUrl u
+  let url = toEventsUrl u
   request <- case m of
                Nothing -> parseUrl url
                Just (BasicAuth l p) -> applyBasicAuth (BC.pack l) (BC.pack p) <$> parseUrl url
@@ -101,16 +44,29 @@ fetch u m = do
     let objects = (fromJust (decode src :: Maybe Array))
         events = DV.map (DAT.parseMaybe parseJSON) objects :: DV.Vector (Maybe Event)
         bs = DV.map (\e -> toBlock $ fromJust e) $ DV.filter (/= Nothing) events
-        bs' = header 1 (str u) <> DV.foldl1 (\acc b -> acc <> b) bs
+        bs' = header 2 (str u) <> DV.foldl1 (\acc b -> acc <> b) bs
     return bs'
 
 toBlock :: Event -> Blocks
-toBlock (PushEvent cs t) =
-  para (str ("PushEvent " ++ show t)) <>
+toBlock (PushEvent _ r cs t) =
+  para (str ("PushEvent to " ++ unpack r ++ " " ++ show t)) <>
   bulletList commitList
   where
     commitList = flip Prelude.map (DV.toList cs) $ \c ->
-      plain (str $ unpack $ name c `mappend` ": " `mappend` comment c `mappend` " ")
+      plain (str (unpack $ name c `mappend` ": " `mappend` comment c `mappend` " ") `mappend` link (commitUrl c) "Go To Commit" "Go To Commit")
 
+{- Format: <user or orgs>/<repo> -}
 toEventsUrl :: String -> String
 toEventsUrl s = "https://api.github.com/repos/" ++ s ++ "/events"
+
+main :: IO()
+main = do
+  repos <- getRepos
+  auth <- getAuth
+  bss <- mapM (flip fetch auth) repos
+  bs <- return $ fold bss
+  html <- return $ writeHtmlString defaultWriterOptions {writerStandalone = True, writerTemplate = template} $ doc $ bs
+  withFile "report.html" WriteMode (\h -> hPutStr h html)
+  putStrLn "Output report.html"
+    where template = renderHtml $(shamletFile "template/layout.hamlet")
+

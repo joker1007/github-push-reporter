@@ -1,0 +1,10 @@
+$newline always
+$doctype 5
+<html>
+  <head>
+    <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.1.0/css/bootstrap-combined.min.css" />
+    <link rel="stylesheet" href="css/style.css" />
+    <title>Github Push Report
+  <body>
+    <div.container-fluid>
+      \$body$
