@@ -1,3 +1,5 @@
 repositories
 auth
 report.html
+cabal-dev
+dist
