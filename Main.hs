@@ -27,8 +27,8 @@ import Types
 import System.Console.GetOpt.Simple
 
 {- Format: <user or orgs>/<repo> -}
-getRepos :: IO [String]
-getRepos = liftM Prelude.lines $ readFile "repositories"
+getRepos :: Maybe FilePath -> IO [String]
+getRepos f = liftM Prelude.lines $ readFile $ fromMaybe "repositories" f
 
 getPassword :: IO String
 getPassword = do
@@ -79,7 +79,8 @@ toEventsUrl s = "https://api.github.com/repos/" ++ s ++ "/events"
 
 options :: [(FlagMaker, String, Mode, String)]
 options = [ (arg, "repositories", Optional, "Target Repositories (separated by comma)"),
-            (arg, "login", Optional, "Github login ID")
+            (arg, "login", Optional, "Github login ID"),
+            (arg, "conf", Optional, "Repository config")
           ]
 
 type LoginName = String
@@ -89,9 +90,10 @@ main = do
   (opts, _) <- getOptsArgs (makeOptions options) [] []
   let maybeRepositories = lookup "repositories" opts
       maybeLogin = lookup "login" opts
+      maybeConf = lookup "conf" opts
   case maybeRepositories of
     Nothing -> do
-      repos <- getRepos
+      repos <- getRepos maybeConf
       process repos maybeLogin
     Just r -> do
       repos <- return $ splitRegex (mkRegex ",") r
