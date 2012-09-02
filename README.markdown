@@ -20,10 +20,16 @@ Usage: github-push-reporter [OPTION...]
   -h               --help                       Show this help.
   -r REPOSITORIES  --repositories=REPOSITORIES  Target Repositories (separated by comma)
   -l LOGIN         --login=LOGIN                Github login ID
-  -c CONF          --conf=CONF                  Repository config
+  -c CONF          --conf=CONF                  Repository config (per line '<user>/<repository name>'
   -f FORMAT        --format=FORMAT              Output file format
   -d DATE          --date=DATE                  Filter by date
   -a AUTHOR        --author=AUTHOR              Filter by author
+```
+
+Config file format is following:
+```
+joker1007/github-push-reporter
+joker1007/pasokara_player3
 ```
 
 ### Example

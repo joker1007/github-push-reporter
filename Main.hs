@@ -99,7 +99,7 @@ toEventsApiUrl s = "https://api.github.com/repos/" ++ s ++ "/events"
 options :: [(FlagMaker, String, Mode, String)]
 options = [ (arg, "repositories", Optional, "Target Repositories (separated by comma)"),
             (arg, "login", Optional, "Github login ID"),
-            (arg, "conf", Optional, "Repository config"),
+            (arg, "conf", Optional, "Repository config (per line '<user>/<repository name>'"),
             (arg, "format", Optional, "Output file format"),
             (arg, "date", Optional, "Filter by date"),
             (arg, "author", Optional, "Filter by author")
