@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings,FlexibleInstances,QuasiQuotes,TemplateHaskell #-}
 module Main where
 
-import Prelude hiding(catch)
+import Prelude hiding(catch,lookup)
 import Control.Applicative ((<$>))
 import Control.Monad (liftM)
 import Control.Monad.IO.Class (liftIO)
@@ -10,6 +10,7 @@ import Data.Foldable (fold)
 import Data.Monoid (mappend)
 import Data.Text
 import Data.Time
+import Data.Map (lookup)
 import System.IO
 import Network.HTTP.Conduit
 import Data.Maybe
@@ -23,16 +24,29 @@ import Text.Pandoc.Builder
 import Text.Hamlet
 import Text.Blaze.Html.Renderer.String
 import Types
+import System.Console.GetOpt.Simple
 
 {- Format: <user or orgs>/<repo> -}
 getRepos :: IO [String]
 getRepos = liftM Prelude.lines $ readFile "repositories"
 
+getPassword :: IO String
+getPassword = do
+  putStr "Password: "
+  hFlush stdout
+  pass <- withEcho False getLine
+  putChar '\n'
+  return pass
+
+withEcho :: Bool -> IO a -> IO a
+withEcho echo action = do
+  old <- hGetEcho stdin
+  bracket_ (hSetEcho stdin echo) (hSetEcho stdin old) action
+
 {- Format: login:pass -}
-getAuth :: IO (Maybe BasicAuth)
-getAuth = handle (\(SomeException _) -> do {return Nothing}) $ do
-    (l:p:_) <- splitRegex (mkRegex ":") <$> readFile "auth"
-    return $ Just $ BasicAuth l (Prelude.takeWhile (/= '\n') p)
+getAuth :: Maybe String -> IO (Maybe BasicAuth)
+getAuth Nothing = return Nothing
+getAuth (Just login) = getPassword >>= (\p -> return $ Just $ BasicAuth login p)
 
 fetch :: String -> Maybe BasicAuth -> IO Blocks
 fetch u m = do
@@ -63,10 +77,27 @@ jstTime t = utcToLocalTime (TimeZone (9 * 60) False "JST") t
 toEventsUrl :: String -> String
 toEventsUrl s = "https://api.github.com/repos/" ++ s ++ "/events"
 
+options = [ (arg, "repositories", Optional, "Target Repositories (separated by comma)"),
+            (arg, "login", Optional, "Github login ID")
+          ]
+
 main :: IO()
 main = do
-  repos <- getRepos
-  auth <- getAuth
+  (opts, args) <- getOptsArgs (makeOptions options) [] []
+  let maybeRepositories = lookup "repositories" opts
+      maybeLogin = lookup "login" opts
+  case maybeRepositories of
+    Nothing -> do
+      repos <- getRepos
+      process repos maybeLogin
+    Just r -> do
+      repos <- return $ splitRegex (mkRegex ",") r
+      process repos maybeLogin
+
+process :: [String] -> Maybe String -> IO ()
+process repos login = do
+  (opts, args) <- getOptsArgs (makeOptions options) [] []
+  auth <- getAuth login
   bss <- mapM (flip fetch auth) repos
   bs <- return $ fold bss
   html <- return $ writeHtmlString defaultWriterOptions {writerStandalone = True, writerTemplate = template} $ doc $ bs
