@@ -47,19 +47,19 @@ getAuth :: Maybe LoginName -> IO (Maybe BasicAuth)
 getAuth Nothing = return Nothing
 getAuth (Just l) = getPassword >>= (\p -> return $ Just $ BasicAuth l p)
 
-fetch :: String -> Maybe BasicAuth -> IO Blocks
-fetch u m = do
-  let url = toEventsUrl u
-  request <- case m of
-               Nothing -> parseUrl url
-               Just (BasicAuth l p) -> applyBasicAuth (BC.pack l) (BC.pack p) <$> parseUrl url
+fetch :: Maybe BasicAuth -> String -> IO Blocks
+fetch mauth url = do
+  request <- parseAuthUrl (toEventsUrl url) mauth
   withManager $ \manager -> do
     Response _ _ _ src <- httpLbs request manager
     let objects = (fromJust (decode src :: Maybe Array))
         events = DV.map (DAT.parseMaybe parseJSON) objects :: DV.Vector (Maybe Event)
         bs = DV.map (\e -> toBlock $ fromJust e) $ DV.filter (/= Nothing) events
-        bs' = header 2 (str u) <> DV.foldl1 (\acc b -> acc <> b) bs
+        bs' = header 2 (str url) <> DV.foldl1 (\acc b -> acc <> b) bs
     return bs'
+  where
+    parseAuthUrl u Nothing = parseUrl u
+    parseAuthUrl u (Just (BasicAuth l p)) = applyBasicAuth (BC.pack l) (BC.pack p) <$> parseUrl u
 
 toBlock :: Event -> Blocks
 toBlock (PushEvent _ r cs t) =
@@ -72,7 +72,7 @@ toBlock (PushEvent _ r cs t) =
         linkStr = str . Prelude.take 7 . unpack . sha
 
 jstTime :: UTCTime -> LocalTime
-jstTime t = utcToLocalTime (TimeZone (9 * 60) False "JST") t
+jstTime = utcToLocalTime (TimeZone (9 * 60) False "JST")
 
 {- Format: <user or orgs>/<repo> -}
 toEventsUrl :: String -> String
@@ -105,7 +105,7 @@ main = do
 process :: [String] -> Maybe LoginName -> OutputFormat -> IO ()
 process repos l f = do
   auth <- getAuth l
-  bss <- mapM (flip fetch auth) repos
+  bss <- mapM (fetch auth) repos
   bs <- return $ fold bss
   html <- return $ write (doc bs) f
   withFile ("report" ++ formatExt f) WriteMode (\h -> hPutStr h html)
