@@ -6,6 +6,13 @@ githubのリポジトリに対するpushEventをまとめて出力するツー�
 - RST
 - Mediawiki
 
+### Install
+```sh
+git clone git://github.com/joker1007/github-push-reporter.git
+cd github-push-reporter
+cabal-dev install
+```
+
 ### Usage
 ```
 Usage: github-push-reporter [OPTION...]
