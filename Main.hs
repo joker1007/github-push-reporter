@@ -4,7 +4,6 @@ module Main where
 import Prelude hiding(catch,lookup)
 import Control.Applicative ((<$>))
 import Control.Monad (liftM)
-import Control.Monad.IO.Class (liftIO)
 import Control.Exception
 import Data.Foldable (fold)
 import Data.Monoid (mappend)
@@ -80,7 +79,8 @@ toEventsUrl s = "https://api.github.com/repos/" ++ s ++ "/events"
 options :: [(FlagMaker, String, Mode, String)]
 options = [ (arg, "repositories", Optional, "Target Repositories (separated by comma)"),
             (arg, "login", Optional, "Github login ID"),
-            (arg, "conf", Optional, "Repository config")
+            (arg, "conf", Optional, "Repository config"),
+            (arg, "format", Default "html", "Output file format")
           ]
 
 type LoginName = String
@@ -91,21 +91,27 @@ main = do
   let maybeRepositories = lookup "repositories" opts
       maybeLogin = lookup "login" opts
       maybeConf = lookup "conf" opts
+      format = lookup "format" opts
   case maybeRepositories of
     Nothing -> do
       repos <- getRepos maybeConf
-      process repos maybeLogin
+      process repos maybeLogin $ outputFormat $ fromJust format
     Just r -> do
       repos <- return $ splitRegex (mkRegex ",") r
-      process repos maybeLogin
+      process repos maybeLogin $ outputFormat $ fromJust format
 
-process :: [String] -> Maybe LoginName -> IO ()
-process repos l = do
+process :: [String] -> Maybe LoginName -> OutputFormat -> IO ()
+process repos l f = do
   auth <- getAuth l
   bss <- mapM (flip fetch auth) repos
   bs <- return $ fold bss
-  html <- return $ writeHtmlString defaultWriterOptions {writerStandalone = True, writerTemplate = template} $ doc $ bs
-  withFile "report.html" WriteMode (\h -> hPutStr h html)
-  putStrLn "Output report.html"
-    where template = renderHtml $(shamletFile "template/layout.hamlet")
+  html <- return $ write (doc bs) f
+  withFile ("report" ++ formatExt f) WriteMode (\h -> hPutStr h html)
+  putStrLn $ "Output report" ++ formatExt f
 
+write :: Pandoc -> OutputFormat -> String
+write d HtmlFormat = writeHtmlString defaultWriterOptions {writerStandalone = True, writerTemplate = template} $ d
+  where template = renderHtml $(shamletFile "template/layout.hamlet")
+write d MarkdownFormat = writeMarkdown defaultWriterOptions $ d
+write d RSTFormat = writeRST defaultWriterOptions $ d
+write d MediaWikiFormat = writeMediaWiki defaultWriterOptions $ d

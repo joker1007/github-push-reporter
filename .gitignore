@@ -1,5 +1,5 @@
 repositories
 auth
-report.html
+report.*
 cabal-dev
 dist

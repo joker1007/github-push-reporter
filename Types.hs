@@ -64,3 +64,18 @@ data BasicAuth = BasicAuth {login :: String, password :: String} deriving Show
 
 shaToCommitUrl :: Text -> Text -> String
 shaToCommitUrl n s = "https://github.com/" ++ unpack n ++ "/commit/" ++ unpack s
+
+data OutputFormat = HtmlFormat | MarkdownFormat | RSTFormat | MediaWikiFormat
+
+outputFormat :: String -> OutputFormat
+outputFormat "html" = HtmlFormat
+outputFormat "markdown" = MarkdownFormat
+outputFormat "rst" = RSTFormat
+outputFormat "mediawiki" = MediaWikiFormat
+outputFormat _ = HtmlFormat
+
+formatExt :: OutputFormat -> String
+formatExt HtmlFormat = ".html"
+formatExt MarkdownFormat = ".md"
+formatExt RSTFormat = ".rst"
+formatExt MediaWikiFormat = ".txt"
