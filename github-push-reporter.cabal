@@ -47,8 +47,24 @@ executable github-push-reporter
   main-is: Main.hs
   
   -- Modules included in this executable, other than Main.
-  -- other-modules:       
+  other-modules: Types
   
   -- Other library packages from which modules are imported.
-  build-depends:       base ==4.5.*, transformers ==0.3.*, containers ==0.4.*, unordered-containers ==0.2.*, bytestring ==0.9.*, text ==0.11.*, time ==1.4.*, old-locale ==1.0.*, vector ==0.9.*, aeson ==0.6.0.*, http-conduit ==1.6.*, pandoc ==1.9.*, pandoc-types ==1.9.*, hamlet ==1.1.*, blaze-html ==0.5.*, regex-compat, getopt-simple
+  build-depends:       base ==4.5.*
+                     , transformers ==0.3.*
+                     , containers ==0.4.*
+                     , unordered-containers ==0.2.*
+                     , bytestring ==0.9.*
+                     , text ==0.11.*
+                     , time ==1.4.*
+                     , old-locale ==1.0.*
+                     , vector ==0.9.*
+                     , aeson ==0.6.0.*
+                     , http-conduit ==1.6.*
+                     , pandoc ==1.9.*
+                     , pandoc-types ==1.9.*
+                     , hamlet ==1.1.*
+                     , blaze-html ==0.5.*
+                     , regex-compat
+                     , getopt-simple
   
