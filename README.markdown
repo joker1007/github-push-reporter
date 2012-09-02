@@ -6,10 +6,11 @@ githubのリポジトリに対するpushEventをまとめて出力するツー�
 - RST
 - Mediawiki
 
-
+### Usage
 ```sh
-# Usage:
 github-push-reporter -r joker1007/github-push-reporter,joker1007/pasokara_player3 -l joker1007
+# -> output report.html
 
 github-push-reporter -c repositories.txt -l joker1007 -f markdown
+# -> output report.md
 ```
