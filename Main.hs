@@ -6,11 +6,12 @@ import Control.Applicative ((<$>))
 import Control.Monad (liftM)
 import Control.Exception
 import Data.Foldable (fold)
-import Data.Monoid (mappend)
+import Data.Monoid (mappend,mempty)
 import Data.Text
 import Data.Time
 import Data.Map (lookup)
 import System.IO
+import System.Locale (defaultTimeLocale)
 import Network.HTTP.Conduit
 import Data.Maybe
 import qualified Data.Vector as DV
@@ -25,8 +26,11 @@ import Text.Blaze.Html.Renderer.String
 import Types
 import System.Console.GetOpt.Simple
 
+type LoginName = String
+type RepositoryName = String
+
 {- Format: <user or orgs>/<repo> -}
-getRepos :: Maybe FilePath -> IO [String]
+getRepos :: Maybe FilePath -> IO [RepositoryName]
 getRepos f = liftM Prelude.lines $ readFile $ fromMaybe "repositories" f
 
 getPassword :: IO String
@@ -49,43 +53,55 @@ getAuth (Just l) = getPassword >>= (\p -> return $ Just $ BasicAuth l p)
 
 fetch :: Maybe BasicAuth -> String -> IO Blocks
 fetch mauth url = do
-  request <- parseAuthUrl (toEventsUrl url) mauth
+  (opts, _) <- getOptsArgs (makeOptions options) [] []
+  let filterDate = (lookup "date" opts >>= parseTime defaultTimeLocale "%F") :: Maybe Day
+      filterAuthor = liftM pack $ lookup "author" opts
+  request <- parseUrlWithAuth (toEventsApiUrl url) mauth
   withManager $ \manager -> do
     Response _ _ _ src <- httpLbs request manager
     let objects = (fromJust (decode src :: Maybe Array))
         events = DV.map (DAT.parseMaybe parseJSON) objects :: DV.Vector (Maybe Event)
-        bs = DV.map (\e -> toBlock $ fromJust e) $ DV.filter (/= Nothing) events
+        bs = DV.map (\e -> toBlock (fromJust e) filterAuthor) $ DV.filter (\e -> isJust e && compareDate filterDate e) events
         bs' = header 2 (str url) <> DV.foldl1 (\acc b -> acc <> b) bs
     return bs'
   where
-    parseAuthUrl u Nothing = parseUrl u
-    parseAuthUrl u (Just (BasicAuth l p)) = applyBasicAuth (BC.pack l) (BC.pack p) <$> parseUrl u
+    compareDate Nothing _ = True
+    compareDate _ Nothing = False
+    compareDate (Just date) (Just event) = date == (localDay $ utcToJstTime $ createdAt event)
+    parseUrlWithAuth u Nothing = parseUrl u
+    parseUrlWithAuth u (Just (BasicAuth l p)) = applyBasicAuth (BC.pack l) (BC.pack p) <$> parseUrl u
 
-toBlock :: Event -> Blocks
-toBlock (PushEvent _ r cs t) =
-  para (str ("PushEvent to " ++ unpack r ++ " at " ++ show (jstTime t))) <>
-  bulletList commitList
+justEql :: (Eq a) => a -> Maybe a -> Bool
+justEql _ Nothing = True
+justEql a (Just b) = a == b
+
+toBlock :: Event -> Maybe Text -> Blocks
+toBlock (PushEvent _ r cs t) author =
+  case commitList of
+    [] -> mempty
+    xs -> para (str ("PushEvent to " ++ unpack r ++ " at " ++ show (utcToJstTime t))) <>
+          bulletList xs
   where
-    commitList = flip Prelude.map (DV.toList cs) $ \c ->
+    commitList = flip Prelude.map (DV.toList $ DV.filter (\c -> name c `justEql` author) cs) $ \c ->
       plain (str (unpack $ name c `mappend` ": " `mappend` comment c `mappend` " : ") `mappend` link (commitUrl c) "Go To Commit" (linkStr c))
       where
         linkStr = str . Prelude.take 7 . unpack . sha
 
-jstTime :: UTCTime -> LocalTime
-jstTime = utcToLocalTime (TimeZone (9 * 60) False "JST")
+utcToJstTime :: UTCTime -> LocalTime
+utcToJstTime = utcToLocalTime (hoursToTimeZone 9)
 
 {- Format: <user or orgs>/<repo> -}
-toEventsUrl :: String -> String
-toEventsUrl s = "https://api.github.com/repos/" ++ s ++ "/events"
+toEventsApiUrl :: String -> String
+toEventsApiUrl s = "https://api.github.com/repos/" ++ s ++ "/events"
 
 options :: [(FlagMaker, String, Mode, String)]
 options = [ (arg, "repositories", Optional, "Target Repositories (separated by comma)"),
             (arg, "login", Optional, "Github login ID"),
             (arg, "conf", Optional, "Repository config"),
-            (arg, "format", Optional, "Output file format")
+            (arg, "format", Optional, "Output file format"),
+            (arg, "date", Optional, "Filter by date"),
+            (arg, "author", Optional, "Filter by author")
           ]
-
-type LoginName = String
 
 main :: IO()
 main = do
