@@ -51,6 +51,8 @@ getAuth :: Maybe LoginName -> IO (Maybe BasicAuth)
 getAuth Nothing = return Nothing
 getAuth (Just l) = getPassword >>= (\p -> return $ Just $ BasicAuth l p)
 
+{- Fetch Repository Events json.
+   And parse to pandoc Blocks -}
 fetch :: Maybe BasicAuth -> String -> IO Blocks
 fetch mauth url = do
   (opts, _) <- getOptsArgs (makeOptions options) [] []
@@ -61,16 +63,16 @@ fetch mauth url = do
     Response _ _ _ src <- httpLbs request manager
     let objects = (fromJust (decode src :: Maybe Array))
         events = DV.map (DAT.parseMaybe parseJSON) objects :: DV.Vector (Maybe Event)
-        bs = DV.map (\e -> toBlock (fromJust e) filterAuthor) $ DV.filter (\e -> isJust e && compareDate filterDate e) events
+        bs = DV.map (\e -> toBlock (fromJust e) filterAuthor) $ DV.filter (\e -> isJust e && e `compareDate` filterDate) events
         bs' = header 2 (str url) <> DV.foldl1 (\acc b -> acc <> b) bs
     return bs'
   where
-    compareDate Nothing _ = True
-    compareDate _ Nothing = False
-    compareDate (Just date) (Just event) = date == (localDay $ utcToJstTime $ createdAt event)
+    compareDate Nothing _ = False
+    compareDate (Just event) mDate = (localDay $ utcToJstTime $ createdAt event) `justEql` mDate
     parseUrlWithAuth u Nothing = parseUrl u
     parseUrlWithAuth u (Just (BasicAuth l p)) = applyBasicAuth (BC.pack l) (BC.pack p) <$> parseUrl u
 
+{- compare Only Maybe is not Nothing, otherwise always return True -}
 justEql :: (Eq a) => a -> Maybe a -> Bool
 justEql _ Nothing = True
 justEql a (Just b) = a == b
