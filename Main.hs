@@ -44,9 +44,9 @@ withEcho echo action = do
   bracket_ (hSetEcho stdin echo) (hSetEcho stdin old) action
 
 {- Format: login:pass -}
-getAuth :: Maybe String -> IO (Maybe BasicAuth)
+getAuth :: Maybe LoginName -> IO (Maybe BasicAuth)
 getAuth Nothing = return Nothing
-getAuth (Just login) = getPassword >>= (\p -> return $ Just $ BasicAuth login p)
+getAuth (Just l) = getPassword >>= (\p -> return $ Just $ BasicAuth l p)
 
 fetch :: String -> Maybe BasicAuth -> IO Blocks
 fetch u m = do
@@ -77,13 +77,16 @@ jstTime t = utcToLocalTime (TimeZone (9 * 60) False "JST") t
 toEventsUrl :: String -> String
 toEventsUrl s = "https://api.github.com/repos/" ++ s ++ "/events"
 
+options :: [(FlagMaker, String, Mode, String)]
 options = [ (arg, "repositories", Optional, "Target Repositories (separated by comma)"),
             (arg, "login", Optional, "Github login ID")
           ]
 
+type LoginName = String
+
 main :: IO()
 main = do
-  (opts, args) <- getOptsArgs (makeOptions options) [] []
+  (opts, _) <- getOptsArgs (makeOptions options) [] []
   let maybeRepositories = lookup "repositories" opts
       maybeLogin = lookup "login" opts
   case maybeRepositories of
@@ -94,10 +97,9 @@ main = do
       repos <- return $ splitRegex (mkRegex ",") r
       process repos maybeLogin
 
-process :: [String] -> Maybe String -> IO ()
-process repos login = do
-  (opts, args) <- getOptsArgs (makeOptions options) [] []
-  auth <- getAuth login
+process :: [String] -> Maybe LoginName -> IO ()
+process repos l = do
+  auth <- getAuth l
   bss <- mapM (flip fetch auth) repos
   bs <- return $ fold bss
   html <- return $ writeHtmlString defaultWriterOptions {writerStandalone = True, writerTemplate = template} $ doc $ bs
