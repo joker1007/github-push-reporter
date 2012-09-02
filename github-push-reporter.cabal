@@ -16,7 +16,7 @@ version:             0.1.0.0
 -- synopsis:            
 
 -- A longer description of the package.
--- description:         
+description: Report Github pushEvents per Repository.
 
 -- The license under which the package is released.
 license:             MIT
@@ -41,8 +41,10 @@ build-type:          Simple
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.8
 
+package-url: https://github.com/joker1007/github-push-reporter
 
 executable github-push-reporter
+  hs-source-dirs: src
   -- .hs or .lhs file containing the Main module.
   main-is: Main.hs
   
