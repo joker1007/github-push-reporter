@@ -17,13 +17,13 @@ cabal-dev install
 ```
 Usage: github-push-reporter [OPTION...]
 
-  -h               --help                       Show this help.
-  -r REPOSITORIES  --repositories=REPOSITORIES  Target Repositories (separated by comma)
-  -l LOGIN         --login=LOGIN                Github login ID
-  -c CONF          --conf=CONF                  Repository config (per line '<user>/<repository name>'
-  -f FORMAT        --format=FORMAT              Output file format
-  -d DATE          --date=DATE                  Filter by date
-  -a AUTHOR        --author=AUTHOR              Filter by author
+  -h                --help                         Show this help.
+  -r REPOSITORIES   --repositories=REPOSITORIES    Target Repositories (separated by comma)
+  -l LOGIN          --login=LOGIN                  Github login ID
+  -f FILE           --file=FILE                    Repository config (per line '<user>/<repository name>'
+  -o OUTPUT-FORMAT  --output-format=OUTPUT-FORMAT  Output file format
+  -d DATE           --date=DATE                    Filter by date
+  -a AUTHOR         --author=AUTHOR                Filter by author
 ```
 
 Config file format is following:

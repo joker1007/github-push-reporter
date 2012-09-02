@@ -99,8 +99,8 @@ toEventsApiUrl s = "https://api.github.com/repos/" ++ s ++ "/events"
 options :: [(FlagMaker, String, Mode, String)]
 options = [ (arg, "repositories", Optional, "Target Repositories (separated by comma)"),
             (arg, "login", Optional, "Github login ID"),
-            (arg, "conf", Optional, "Repository config (per line '<user>/<repository name>'"),
-            (arg, "format", Optional, "Output file format"),
+            (arg, "file", Optional, "Repository config (per line '<user>/<repository name>'"),
+            (arg, "output-format", Optional, "Output file format"),
             (arg, "date", Optional, "Filter by date"),
             (arg, "author", Optional, "Filter by author")
           ]
@@ -110,8 +110,8 @@ main = do
   (opts, _) <- getOptsArgs (makeOptions options) [] []
   let maybeRepositories = lookup "repositories" opts
       maybeLogin = lookup "login" opts
-      maybeConf = lookup "conf" opts
-      format = lookup "format" opts
+      maybeConf = lookup "file" opts
+      format = lookup "output-format" opts
   case maybeRepositories of
     Nothing -> do
       repos <- getRepos maybeConf
