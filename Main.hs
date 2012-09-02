@@ -63,11 +63,13 @@ fetch u m = do
 
 toBlock :: Event -> Blocks
 toBlock (PushEvent _ r cs t) =
-  para (str ("PushEvent to " ++ unpack r ++ " " ++ show (jstTime t))) <>
+  para (str ("PushEvent to " ++ unpack r ++ " at " ++ show (jstTime t))) <>
   bulletList commitList
   where
     commitList = flip Prelude.map (DV.toList cs) $ \c ->
-      plain (str (unpack $ name c `mappend` ": " `mappend` comment c `mappend` " ") `mappend` link (commitUrl c) "Go To Commit" "Go To Commit")
+      plain (str (unpack $ name c `mappend` ": " `mappend` comment c `mappend` " : ") `mappend` link (commitUrl c) "Go To Commit" (linkStr c))
+      where
+        linkStr = str . Prelude.take 7 . unpack . sha
 
 jstTime :: UTCTime -> LocalTime
 jstTime t = utcToLocalTime (TimeZone (9 * 60) False "JST") t
