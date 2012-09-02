@@ -82,7 +82,7 @@ options :: [(FlagMaker, String, Mode, String)]
 options = [ (arg, "repositories", Optional, "Target Repositories (separated by comma)"),
             (arg, "login", Optional, "Github login ID"),
             (arg, "conf", Optional, "Repository config"),
-            (arg, "format", Default "html", "Output file format")
+            (arg, "format", Optional, "Output file format")
           ]
 
 type LoginName = String
@@ -97,10 +97,10 @@ main = do
   case maybeRepositories of
     Nothing -> do
       repos <- getRepos maybeConf
-      process repos maybeLogin $ outputFormat $ fromJust format
+      process repos maybeLogin $ outputFormat $ fromMaybe "html" format
     Just r -> do
       repos <- return $ splitRegex (mkRegex ",") r
-      process repos maybeLogin $ outputFormat $ fromJust format
+      process repos maybeLogin $ outputFormat $ fromMaybe "html" format
 
 process :: [String] -> Maybe LoginName -> OutputFormat -> IO ()
 process repos l f = do
