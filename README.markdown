@@ -37,6 +37,6 @@ joker1007/pasokara_player3
 github-push-reporter -r joker1007/github-push-reporter,joker1007/pasokara_player3 -l joker1007
 # -> output report.html
 
-github-push-reporter -c repositories.txt -l joker1007 -f markdown
+github-push-reporter -f repositories.txt -l joker1007 -o markdown
 # -> output report.md
 ```
